@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.3 $$ ($Name:  $)
+ * @version $Revision: 1.4 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -65,7 +65,9 @@ public class SirfInput implements Runnable{
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
+			
 		}
+		receiver.sirfDecoderEnd();
 	}
 	
 	public synchronized void close() {
@@ -157,7 +159,7 @@ public class SirfInput implements Runnable{
 			} // while
 		} catch (IOException e) {
 			receiver.receiveMessage("Fehler: " + e.getMessage());
-			closed=true;
+			close();
 		}
 
 	}
