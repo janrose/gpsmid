@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.4 $$ ($Name:  $)
+ * @version $Revision: 1.5 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -26,13 +26,13 @@ public class SirfMessage {
 	public int				length		= 0;
 	Date date=new Date();
 
-	private final SirfMsgReceiver	receiver;
+	private final LocationMsgReceiver	receiver;
 
-	public SirfMessage(SirfMsgReceiver receiver) {
+	public SirfMessage(LocationMsgReceiver receiver) {
 		this.receiver = receiver;}
 
 
-	public SirfMessage(byte[] readBuffer,SirfMsgReceiver receiver) {
+	public SirfMessage(byte[] readBuffer,LocationMsgReceiver receiver) {
 		this.receiver=receiver;
 		this.readBuffer = readBuffer;
 		length = readBuffer.length;
