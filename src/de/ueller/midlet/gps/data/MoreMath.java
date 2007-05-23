@@ -14,8 +14,8 @@
 // 
 // $Source: /home/kai/workspace/CVS-rsync/GpsMid/src/de/ueller/midlet/gps/data/Attic/MoreMath.java,v $
 // $RCSfile: MoreMath.java,v $
-// $Revision: 1.3 $
-// $Date: 2007-04-05 15:05:47 $
+// $Revision: 1.4 $
+// $Date: 2007-05-23 09:10:17 $
 // $Author: james22 $
 // 
 // **********************************************************************
@@ -349,7 +349,7 @@ public class MoreMath {
 	
 	/**
 	 * The rest of this file is based on work of Nikolay Klimchuk but modifyed
-	 * to use flot insead of double.
+	 * to use float insead of double.
 	 * 
 	 * <p>Title: Class for float-point calculations in J2ME applications CLDC 1.1</p>
 	 * <p>Description: Useful methods for float-point calculations which absent in native Math class</p>
