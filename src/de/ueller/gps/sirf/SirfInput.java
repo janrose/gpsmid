@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.6 $$ ($Name:  $)
+ * @version $Revision: 1.7 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -44,6 +44,13 @@ public class SirfInput implements Runnable{
 
 	public void run(){
 		receiver.receiveMessage("start Tread");
+		try {
+			while (ins.available() > 0)
+				ins.read();
+		} catch (IOException e1) {
+			receiver.receiveMessage("closing " + e1.getMessage());
+			closed=true;
+		}
 		byte timeCounter=21;
 		while (!closed){
 			timeCounter++;
