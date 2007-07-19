@@ -12,10 +12,10 @@
 // </copyright>
 // **********************************************************************
 // 
-// $Source: /home/kai/workspace/CVS-rsync/GpsMid/src/de/ueller/midlet/gps/data/Attic/MoreMath.java,v $
+// $Source: /home/kai/workspace/CVS-rsync/GpsMid/GpsMidGraph/de/ueller/midlet/gps/data/MoreMath.java,v $
 // $RCSfile: MoreMath.java,v $
-// $Revision: 1.4 $
-// $Date: 2007-05-23 09:10:17 $
+// $Revision: 1.1 $
+// $Date: 2007-07-19 15:49:12 $
 // $Author: james22 $
 // 
 // **********************************************************************
@@ -49,7 +49,14 @@ public class MoreMath {
 //	private final static Logger				logger			= Logger
 //																	.getInstatance(MoreMath.class);
 
-
+	/**
+	 * 180/Pi
+	 */
+	final public static transient float FAC_RADTODEC =  180.0f/(float)Math.PI;
+	/**
+	 * Pi/180
+	 */
+	final public static transient float FAC_DECTORAD =  (float)Math.PI / 180f;
 	/**
 	 * 2*Math.PI
 	 */
@@ -628,7 +635,4 @@ public class MoreMath {
 			return f;
 		}
 	}
-	
-	
-
 }
