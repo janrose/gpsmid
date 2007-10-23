@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.8 $$ ($Name:  $)
+ * @version $Revision: 1.9 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -192,7 +192,6 @@ public class SirfMessage {
 //		cal.set(Calendar.SECOND, (int) second);
 
 		Position p = new Position((float) lat, (float) lon, (float) altMSL, (float) sog, (float) course, valid, date/*cal.getTime()*/);
-//		pcs.firePropertyChange("GpsPosition", pold, p);
 		receiver.receivePosItion(p);
 		pold = p;
 		return null;

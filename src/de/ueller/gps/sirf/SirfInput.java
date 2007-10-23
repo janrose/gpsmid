@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.11 $$ ($Name:  $)
+ * @version $Revision: 1.12 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -56,20 +56,20 @@ public class SirfInput implements Runnable, LocationMsgProducer{
 		receiver.receiveMessage("start SIRF receiver");
 		//#debug debug
 		logger.debug("start SIRF receiver");
-		try {
-			receiver.receiveMessage("eat up " + ins.available() + "bytes");
-			//#debug debug
-			logger.debug("addr of ins:" + ins);
-			while (ins.available() > 1022)
-				ins.read(smsg.readBuffer,0,1023);
-			while (ins.available() > 0)
-				ins.read();
-		} catch (IOException e1) {
-			//#debug error
-			logger.error(e1.getMessage());
-			receiver.receiveMessage("closing " + e1.getMessage());
-			closed=true;
-		}
+//		try {
+//			receiver.receiveMessage("eat up " + ins.available() + "bytes");
+//			//#debug debug
+//			logger.debug("addr of ins:" + ins);
+//			while (ins.available() > 1022)
+//				ins.read(smsg.readBuffer,0,1023);
+//			while (ins.available() > 0)
+//				ins.read();
+//		} catch (IOException e1) {
+//			//#debug error
+//			logger.error(e1.getMessage());
+//			receiver.receiveMessage("closing " + e1.getMessage());
+//			closed=true;
+//		}
 		msgsReceived=1;
 		byte timeCounter=21;
 		while (!closed){
