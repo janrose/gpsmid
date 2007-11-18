@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.7 $$ ($Name:  $)
+ * @version $Revision: 1.8 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -161,7 +161,10 @@ public class NmeaInput implements Runnable, LocationMsgProducer{
 					p1++;
 				}				
 				//If we haven't seen the start of the sentence, this data is useless so discard it
-				if (!found_start) continue; 
+				if (!found_start) {
+					p1 = 0; p2 = 0; found_end = false;
+					continue; 
+				}
 				//Check to make sure we don't overrun the buffer
 				if (p2 + p1 - start1 > 128) {
 					System.out.println("Error: NMEA string was longer than 128 char, but max should be 82");
