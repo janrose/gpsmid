@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.2 $$ ($Name:  $)
+ * @version $Revision: 1.3 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -23,6 +23,9 @@ public class Position {
 	public float latitude;
 	public float longitude;
 	public float altitude;
+	/**
+	 * Speed over ground in m/s
+	 */
 	public float speed;
 	public float course;
 	public int mode=-1;
