@@ -14,9 +14,9 @@
 // 
 // $Source: /home/kai/workspace/CVS-rsync/GpsMid/src/de/ueller/midlet/gps/data/ProjMath.java,v $
 // $RCSfile: ProjMath.java,v $
-// $Revision: 1.2 $
-// $Date: 2007-04-03 09:55:40 $
-// $Author: james22 $
+// $Revision: 1.3 $
+// $Date: 2008-02-10 21:46:07 $
+// $Author: apmonkey $
 // 
 // **********************************************************************
 
@@ -115,6 +115,34 @@ public final class ProjMath {
                 + Math.PI : Math.PI - lon1)
                 + ((lon2 < 0) ? lon2 + Math.PI : Math.PI - lon2));
     }
+
+	/**
+	 * Calculate the distance between two nodes along the great circle
+	 */
+	public static float getDistance(Node n1, Node n2) {
+		if (n1 == null || n2 == null)
+			return 0.0f;
+		
+		float lat1 = n1.radlat;
+		float lon1 = n1.radlon;
+		float lat2 = n2.radlat;
+		float lon2 = n2.radlon;
+		return getDistance(lat1, lon1, lat2, lon2);
+	}
+	
+	public static float getDistance(float lat1, float lon1, float lat2, float lon2) {
+		// Taken from http://williams.best.vwh.net/avform.htm
+		float d=2*MoreMath.asin((float)Math.sqrt((MoreMath.pow((float)Math.sin((lat1-lat2)/2),2.0f) + 
+												  Math.cos(lat1)*Math.cos(lat2)*MoreMath.pow((float)Math.sin((lon1-lon2)/2),2.0f))));
+
+		//taken from ITM Project Korbel
+		d *= 3437.7387; //radians to nautical miles
+		d *= 1.150779; //nautical miles to land miles
+		d *= 1.609; //land miles to kilometers
+		d *= 1000; //kilometers to meters    
+
+		return d;
+	}
 
     /**
      * Convert between decimal degrees and scoords.

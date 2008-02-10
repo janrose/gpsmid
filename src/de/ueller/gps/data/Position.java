@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.3 $$ ($Name:  $)
+ * @version $Revision: 1.4 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -62,4 +62,13 @@ public class Position {
 //				e.printStackTrace();
 			}
 		}		
+
+		public String toString() {
+			StringBuffer sb = new StringBuffer("Position: ");
+			sb.append(latitude).append("/").append(longitude).append("  ");
+			sb.append("height: ").append(altitude).append("m   ");
+			sb.append("Speed: ").append((speed*3.6f)).append("km/h  ");
+			sb.append("Course: ").append(course);
+			return sb.toString();
+		}
 }
