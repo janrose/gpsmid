@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.9 $$ ($Name:  $)
+ * @version $Revision: 1.10 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  * Copyright (C) 2008 Kai Krueger
@@ -76,10 +76,10 @@ public class NmeaInput implements Runnable, LocationMsgProducer{
 			close("closing " + e1.getMessage());
 		}
 		
-		byte timeCounter=21;
+		byte timeCounter=41;
 		while (!closed){
 			timeCounter++;
-			if (timeCounter > 20){
+			if (timeCounter > 40){
 				timeCounter = 0;
 				if(connectQuality > 100) {
 					connectQuality=100;
