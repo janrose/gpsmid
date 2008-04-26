@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.2 $$ ($Name:  $)
+ * @version $Revision: 1.3 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -59,6 +59,13 @@ public class Satelit {
 	}
 	public boolean isLocked(){
 		return isState(STATUS_CODE_LOCKED);
+	}
+	
+	public void isLocked(boolean locked){
+		if (locked == true)
+			state |= STATUS_CODE_LOCKED;
+		else
+			state &= ~STATUS_CODE_LOCKED;
 	}
 	public boolean isAcquisitionFaild(){
 		return isState(STATUS_ACQUISITION_FAILD);
