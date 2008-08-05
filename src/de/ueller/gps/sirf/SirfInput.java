@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.14 $$ ($Name:  $)
+ * @version $Revision: 1.15 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -12,6 +12,7 @@ package de.ueller.gps.sirf;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 import de.ueller.gps.BtReceiverInput;
 import de.ueller.midlet.gps.LocationMsgProducer;
@@ -30,11 +31,11 @@ public class SirfInput extends BtReceiverInput {
 	private SirfMessage smsg;
 	private int msgsReceived;
 
-	public void init (InputStream ins, LocationMsgReceiver receiver) {
+	public void init(InputStream ins, OutputStream outs, LocationMsgReceiver receiver) {
 		//#debug
 		logger.debug("Starting Sirf Decoder");
 		smsg=new SirfMessage(receiver);
-		super.init(ins, receiver);
+		super.init(ins, outs, receiver);
 	}
 
 	/*	public void run(){
