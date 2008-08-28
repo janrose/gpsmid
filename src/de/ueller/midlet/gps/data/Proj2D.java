@@ -14,9 +14,9 @@
 // 
 // $Source: /home/kai/workspace/GIT-GpsMid/CVS-rsync/GpsMid/src/de/ueller/midlet/gps/data/Proj2D.java,v $
 // $RCSfile: Proj2D.java,v $
-// $Revision: 1.3 $
-// $Date: 2008-08-27 20:16:58 $
-// $Author: james22 $
+// $Revision: 1.4 $
+// $Date: 2008-08-28 21:51:33 $
+// $Author: apmonkey $
 // 
 // **********************************************************************
 
@@ -50,9 +50,9 @@ public class Proj2D implements Projection {
     private float scaled_radius_rel;    
     private float scaled_lat_rel;
     private float minLat=Float.MAX_VALUE;
-    private float maxLat=Float.MIN_VALUE;
+    private float maxLat=-Float.MAX_VALUE;
     private float minLon=Float.MAX_VALUE;
-    private float maxLon=Float.MIN_VALUE;
+    private float maxLon=-Float.MAX_VALUE;
 	private IntPoint	panP=new IntPoint();
 
 
