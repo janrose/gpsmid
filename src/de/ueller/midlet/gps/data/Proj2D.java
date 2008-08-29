@@ -14,8 +14,8 @@
 // 
 // $Source: /home/kai/workspace/GIT-GpsMid/CVS-rsync/GpsMid/src/de/ueller/midlet/gps/data/Proj2D.java,v $
 // $RCSfile: Proj2D.java,v $
-// $Revision: 1.4 $
-// $Date: 2008-08-28 21:51:33 $
+// $Revision: 1.5 $
+// $Date: 2008-08-29 19:10:25 $
 // $Author: apmonkey $
 // 
 // **********************************************************************
@@ -87,11 +87,11 @@ public class Proj2D implements Projection {
     	Node ret=new Node();
     	inverse(0, 0, ret);
     	extendMinMax(ret);
-    	inverse(0, width, ret);
+    	inverse(0, height, ret);
     	extendMinMax(ret);
-    	inverse(height, 0, ret);
+    	inverse(width, 0, ret);
     	extendMinMax(ret);
-    	inverse(height, width, ret);
+    	inverse(width, height, ret);
     	extendMinMax(ret);
     	
     	System.out.println("scaled lat=" + scaled_lat);
