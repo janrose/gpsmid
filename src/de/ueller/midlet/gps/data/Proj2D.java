@@ -14,8 +14,8 @@
 // 
 // $Source: /home/kai/workspace/GIT-GpsMid/CVS-rsync/GpsMid/src/de/ueller/midlet/gps/data/Proj2D.java,v $
 // $RCSfile: Proj2D.java,v $
-// $Revision: 1.5 $
-// $Date: 2008-08-29 19:10:25 $
+// $Revision: 1.6 $
+// $Date: 2008-09-06 19:14:13 $
 // $Author: apmonkey $
 // 
 // **********************************************************************
@@ -23,6 +23,7 @@
 package de.ueller.midlet.gps.data;
 
 import de.ueller.gpsMid.mapData.SingleTile;
+import de.ueller.midlet.gps.Logger;
 
 
 /**
@@ -54,6 +55,8 @@ public class Proj2D implements Projection {
     private float minLon=Float.MAX_VALUE;
     private float maxLon=-Float.MAX_VALUE;
 	private IntPoint	panP=new IntPoint();
+	
+	protected static final Logger logger = Logger.getInstance(Proj2D.class,Logger.TRACE);
 
 
 	public Proj2D(Node center, float scale, int width, int height) {
@@ -62,7 +65,7 @@ public class Proj2D implements Projection {
 		this.scale = scale;
 		this.width = width;
 		this.height = height;
-		System.out.println("init projMU s=" + scale + " w="+ width + " h=" + height);
+		logger.debug("init projMU s=" + scale + " w="+ width + " h=" + height);
 		computeParameters();
     }
 
@@ -94,10 +97,10 @@ public class Proj2D implements Projection {
     	inverse(width, height, ret);
     	extendMinMax(ret);
     	
-    	System.out.println("scaled lat=" + scaled_lat);
-    	System.out.println("scaled_Radius=" + scaled_radius);
-    	System.out.println("tanCtrLat=" + tanCtrLat);
-    	System.out.println("asinh_of_tanCtrLat=" + asinh_of_tanCtrLat);
+    	logger.debug("scaled lat=" + scaled_lat);
+    	logger.debug("scaled_Radius=" + scaled_radius);
+    	logger.debug("tanCtrLat=" + tanCtrLat);
+    	logger.debug("asinh_of_tanCtrLat=" + asinh_of_tanCtrLat);
 	}
 	
 	private void extendMinMax(Node n) {
