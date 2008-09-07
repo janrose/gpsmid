@@ -14,8 +14,8 @@
 // 
 // $Source: /home/kai/workspace/GIT-GpsMid/CVS-rsync/GpsMid/src/de/ueller/midlet/gps/data/Proj2D.java,v $
 // $RCSfile: Proj2D.java,v $
-// $Revision: 1.6 $
-// $Date: 2008-09-06 19:14:13 $
+// $Revision: 1.7 $
+// $Date: 2008-09-07 00:38:34 $
 // $Author: apmonkey $
 // 
 // **********************************************************************
@@ -65,7 +65,8 @@ public class Proj2D implements Projection {
 		this.scale = scale;
 		this.width = width;
 		this.height = height;
-		logger.debug("init projMU s=" + scale + " w="+ width + " h=" + height);
+		//#debug debug
+		logger.debug("init projMU s=" + scale + " w="+ width + " h=" + height);		
 		computeParameters();
     }
 
@@ -97,10 +98,13 @@ public class Proj2D implements Projection {
     	inverse(width, height, ret);
     	extendMinMax(ret);
     	
+    	//#mdebug debug
     	logger.debug("scaled lat=" + scaled_lat);
     	logger.debug("scaled_Radius=" + scaled_radius);
     	logger.debug("tanCtrLat=" + tanCtrLat);
     	logger.debug("asinh_of_tanCtrLat=" + asinh_of_tanCtrLat);
+    	logger.debug("Bounds: " + maxLat + " " + maxLon + " " + minLat + " " + minLon);
+    	//#enddebug
 	}
 	
 	private void extendMinMax(Node n) {
