@@ -39,6 +39,7 @@ import de.ueller.gps.data.Satelit;
 import de.ueller.gps.nmea.NmeaInput;
 import de.ueller.gps.sirf.SirfInput;
 import de.ueller.gps.tools.HelperRoutines;
+import de.ueller.gps.tools.intTree;
 import de.ueller.gpsMid.mapData.DictReader;
 import de.ueller.gpsMid.mapData.QueueDataReader;
 import de.ueller.gpsMid.mapData.QueueDictReader;
@@ -91,6 +92,15 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 	private final Command ROUTINGS_CMD = new Command("Routing...",Command.ITEM, 3);
 	private final Command OK_CMD = new Command("OK",Command.OK, 14);
 	private final Command BACK_CMD = new Command("Back",Command.BACK, 15);
+	private final Command ZOOM_IN_CMD = new Command("Zoom in",Command.ITEM, 100);
+	private final Command ZOOM_OUT_CMD = new Command("Zoom out",Command.ITEM, 100);
+	private final Command TOGGLE_OVERLAY_CMD = new Command("Next overlay",Command.ITEM, 100);
+	private final Command TOGGLE_BACKLIGHT_CMD = new Command("Keep backlight on/off",Command.ITEM, 100);
+	private final Command TOGGLE_FULLSCREEN_CMD = new Command("Switch to fullscreen",Command.ITEM, 100);
+	private final Command TOGGLE_MAP_PROJ_CMD = new Command("Next map projection",Command.ITEM, 100);
+	private final Command TOGGLE_KEY_LOCK_CMD = new Command("(De)Activate Keylock",Command.ITEM, 100);
+	private final Command TOGGLE_RECORDING_CMD = new Command("(De)Activate recording",Command.ITEM, 100);
+	private final Command RECENTER_GPS_CMD = new Command("Recenter on GPS",Command.ITEM, 100);
 
 
 	private InputStream btGpsInputStream;
@@ -115,6 +125,7 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 	private final GpsMid parent;
 
 	private String lastMsg;
+	private String currentMsg;
 	private Calendar lastMsgTime = Calendar.getInstance();
 
 	private long collected = 0;
@@ -141,6 +152,10 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 	
 	private List recordingsMenu;
 	private List routingsMenu;
+	
+	private intTree singleKeyPressCommand = new intTree();
+	private intTree doubleKeyPressCommand = new intTree();
+	private intTree longKeyPressCommand = new intTree();
 
 	private final static Logger logger = Logger.getInstance(Trace.class,Logger.DEBUG);
 
@@ -241,6 +256,24 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 		addCommand(RECORDINGS_CMD);
 		addCommand(ROUTINGS_CMD);
 		setCommandListener(this);
+		
+		singleKeyPressCommand.put(KEY_NUM1, ZOOM_OUT_CMD);
+		singleKeyPressCommand.put(KEY_NUM3, ZOOM_IN_CMD);
+		singleKeyPressCommand.put(KEY_NUM5, RECENTER_GPS_CMD);
+		singleKeyPressCommand.put(KEY_NUM7, TOGGLE_OVERLAY_CMD);
+		//singleKeyPressCommand.put(KEY_NUM9, ROTATE_CMD);
+		singleKeyPressCommand.put(KEY_NUM0, TOGGLE_FULLSCREEN_CMD);
+		singleKeyPressCommand.put(KEY_STAR, MAPFEATURES_CMD);		
+		singleKeyPressCommand.put(KEY_POUND, TOGGLE_BACKLIGHT_CMD);
+		singleKeyPressCommand.put(Configuration.KEYCODE_CAMERA_COVER_OPEN, CAMERA_CMD);
+		doubleKeyPressCommand.put(KEY_NUM5, TOGGLE_MAP_PROJ_CMD);
+		longKeyPressCommand.put(KEY_NUM5, SAVE_WAYP_CMD);
+		longKeyPressCommand.put(KEY_NUM9, TOGGLE_KEY_LOCK_CMD);
+		longKeyPressCommand.put(KEY_NUM0, TOGGLE_RECORDING_CMD);
+		longKeyPressCommand.put(KEY_STAR, MAN_WAYP_CMD);
+		longKeyPressCommand.put(KEY_POUND, MANAGE_TRACKS_CMD);
+		
+		
 		
 		try {
 			satelit = Image.createImage("/satelit.png");
@@ -748,11 +781,65 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 				setTarget(null);
 				setRoute(null);
 				setRouteNodes(null);				
-			}
-			if (c == SETTARGET_CMD) {				
+			} else if (c == SETTARGET_CMD) {				
 				if (source != null) {
 					setTarget(source);
 				}
+			} else if (c == ZOOM_IN_CMD) {
+				scale = scale / 1.5f;
+			} else if (c == ZOOM_OUT_CMD) {
+				scale = scale * 1.5f;
+			} else if (c == TOGGLE_OVERLAY_CMD) {
+				showAddons++;
+			} else if (c == TOGGLE_BACKLIGHT_CMD) {
+//				 toggle Backlight
+				config.setCfgBitState(Configuration.CFGBIT_BACKLIGHT_ON,
+									!(config.getCfgBitState(Configuration.CFGBIT_BACKLIGHT_ON)),
+									false);
+				if ( config.getCfgBitState(Configuration.CFGBIT_BACKLIGHT_ON, false) ) {
+					parent.alert("Backlight", "Backlight ON" , 750);
+
+				} else {
+					parent.alert("Backlight", "Backlight off" , 750);
+				}
+				parent.stopBackLightTimer();
+				parent.startBackLightTimer();
+			} else if (c == TOGGLE_FULLSCREEN_CMD) {
+				boolean fullScreen = !config.getCfgBitState(Configuration.CFGBIT_FULLSCREEN);
+				config.setCfgBitState(Configuration.CFGBIT_FULLSCREEN, fullScreen, false);
+				setFullScreenMode(fullScreen);
+			} else if (c == TOGGLE_MAP_PROJ_CMD) {
+				if (ProjFactory.getProj() == ProjFactory.NORTH_UP ) {
+					ProjFactory.setProj(ProjFactory.MOVE_UP);
+					parent.alert("Map Rotation", "Rotate to Driving Direction" , 500);
+				} else {
+					ProjFactory.setProj(ProjFactory.NORTH_UP);					
+					parent.alert("Map Rotation", "NORTH UP" , 500);
+				}
+				// redraw immediately
+				synchronized (this) {
+					if (imageCollector != null) {
+						imageCollector.newDataReady();
+					}
+				}
+			} else if (c == TOGGLE_KEY_LOCK_CMD) {
+				keyboardLocked=!keyboardLocked;
+				if(keyboardLocked) {
+					// show alert that keys are locked
+					keyPressed(0);
+				} else {
+					parent.alert("GpsMid", "Keys unlocked",750);					
+				}
+			} else if (c == TOGGLE_RECORDING_CMD) {
+				if ( gpx.isRecordingTrk() ) {
+					parent.alert("Gps track recording", "Stopping to record" , 750);                                        
+					commandAction(STOP_RECORD_CMD,(Displayable) null);
+				} else {
+					parent.alert("Gps track recording", "Starting to record" , 750);
+					commandAction(START_RECORD_CMD,(Displayable) null);
+				}
+			} else if (c == RECENTER_GPS_CMD) {
+				gpsRecenter = true;
 			}
 			} else {
 				logger.error(" currently in route Caclulation");
@@ -836,16 +923,13 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 	protected void sizeChanged(int w, int h) {
 		if (imageCollector != null){
 			logger.info("Size of Canvas changed to " + w + "|" + h);
-			if (w > imageCollector.xSize || h > imageCollector.ySize) {
-				logger.info(pc.xSize + " | " + pc.ySize);
-				stopImageCollector();
-				try {
-					startImageCollector();
-					imageCollector.resume();
-					imageCollector.newDataReady();
-				} catch (Exception e) {
-					logger.exception("Could not reinitialise Image Collector after size change", e);
-				}
+			stopImageCollector();
+			try {
+				startImageCollector();
+				imageCollector.resume();
+				imageCollector.newDataReady();
+			} catch (Exception e) {
+				logger.exception("Could not reinitialise Image Collector after size change", e);
 			}
 			/**
 			 * Recalculate the projection, as it may depends on the size of the screen
@@ -858,20 +942,7 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 	protected void paint(Graphics g) {
 		//#debug debug
 		logger.debug("Drawing Map screen");
-		if (lastMsg != null && getTitle() != null) {
-			if (System.currentTimeMillis() 
-					> (lastMsgTime.getTime().getTime() + 5000))
-			{
-				/**
-				 * Be careful with calling setTitle in paint.
-				 * setTitle may cause a repaint, which would
-				 * cause the painter thread to spinn slowing
-				 * everything else down 
-				 */
-				logger.info("Setting title back to null");
-				setTitle(null);
-			}
-		}
+		
 		try {
 			int yc = 1;
 			int la = 18;
@@ -931,6 +1002,25 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 			if (pc != null){
 				showTarget(pc);
 			}
+			
+			if (currentMsg != null) {
+				if (compassRectHeight == 0) {
+					compassRectHeight = pc.g.getFont().getHeight()-2;
+				}
+				g.setColor(255,255,255);
+				g.fillRect(0,0, imageCollector.xSize, compassRectHeight + 2);
+				g.setColor(0,0,0);
+				g.drawString(currentMsg, 
+						imageCollector.xSize/2, 0, Graphics.TOP|Graphics.HCENTER);
+				
+				if (System.currentTimeMillis() 
+						> (lastMsgTime.getTime().getTime() + 5000)) {			
+					logger.info("Setting title back to null");
+					lastMsg = currentMsg;
+					currentMsg = null;
+				}
+			}
+			
 		} catch (Exception e) {
 			logger.silentexception("Unhandled exception in the paint code", e);
 		}
@@ -1672,11 +1762,11 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 	}
 
 	public synchronized void receiveMessage(String s) {
-		lastMsg = s;
-		//#debug
-		parent.log(s);
-		setTitle(lastMsg);
+//		#debug info
+		logger.info("Setting title: " + s);
+		currentMsg = s;
 		lastMsgTime.setTime( new Date( System.currentTimeMillis() ) );
+		repaint();
 	}
 
 	public void receiveStatelit(Satelit[] sat) {
@@ -1689,16 +1779,12 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 	}
 
 	protected void keyRepeated(int keyCode) {
-	// strange seem to be working in emulator only with this debug line
+		// strange seem to be working in emulator only with this debug line
 		logger.debug("keyRepeated " + keyCode);
 		//Scrolling should work with repeated keys the same
 		//as pressing the key multiple times
 		if (keyCode==ignoreKeyCode) {
 			logger.debug("key ignored " + keyCode);
-			return;
-		}
-		if (keyCode==releasedKeyCode) {
-			logger.debug("released key ignored " + keyCode);
 			return;
 		}
 		int gameActionCode = this.getGameAction(keyCode);
@@ -1718,195 +1804,107 @@ public class Trace extends Canvas implements CommandListener, LocationMsgReceive
 		if ( (keyTime-pressedKeyTime)>=1000 &&
 			 pressedKeyCode==keyCode)
 		{
-			if(keyCode == KEY_NUM5) {
+			Command longC = (Command)longKeyPressCommand.get(keyCode);
+			//#debug debug
+			logger.debug("long key pressed " + keyCode +  " executing command " + longC);
+			if (longC != null) {
 				ignoreKeyCode=keyCode;
-				commandAction(SAVE_WAYP_CMD,(Displayable) null);
-				return;
+				commandAction(longC,(Displayable) null);
 			}
-			if(keyCode == KEY_NUM9) {
-				ignoreKeyCode=keyCode;
-				keyboardLocked=!keyboardLocked;
-				if(keyboardLocked) {
-					// show alert that keys are locked
-					keyPressed(0);
-				} else {
-					parent.getInstance().alert("GpsMid", "Keys unlocked",750);					
-				}
-			}	
-			if(keyCode == KEY_STAR) {
-				ignoreKeyCode=keyCode;
-				commandAction(MAN_WAYP_CMD,(Displayable) null);
-				return;
-			}		
-			if(keyCode == KEY_POUND) {
-				ignoreKeyCode=keyCode;
-				commandAction(MANAGE_TRACKS_CMD,(Displayable) null);
-				return;
-			}
-			if(keyCode == KEY_NUM0) {
-				ignoreKeyCode=keyCode;				
-				if ( gpx.isRecordingTrk() ) {
-					GpsMid.getInstance().alert("Gps track recording", "Stopping to record" , 750);					
-					commandAction(STOP_RECORD_CMD,(Displayable) null);
-				} else {
-					GpsMid.getInstance().alert("Gps track recording", "Starting to record" , 750);
-					commandAction(START_RECORD_CMD,(Displayable) null);
-				}
-				return;
-			}		
 		}	
 	}
 
-	private void singleOrDoubleKeyPress(int keyCode) {		
-		// key was pressed twice quickly
-		if (releasedKeyCode == keyCode) {
-			releasedKeyCode = 0;
-			if (keyCode == KEY_NUM5) {			
-				if (ProjFactory.getProj() == ProjFactory.NORTH_UP ) {
-					ProjFactory.setProj(ProjFactory.MOVE_UP);
-					parent.getInstance().alert("Map Rotation", "Rotate to Driving Direction" , 500);
-				} else {
-					ProjFactory.setProj(ProjFactory.NORTH_UP);					
-					parent.getInstance().alert("Map Rotation", "NORTH UP" , 500);
-				}
-				// redraw immediately
-				synchronized (this) {
-					if (imageCollector != null) {
-						imageCollector.newDataReady();
-					}
-				}
-			}
-		} else {		
-			releasedKeyCode=keyCode;
-			TimerTask timerT;
-			Timer tm = new Timer();	    
-		    timerT = new TimerTask() {
-				public void run() {
-					// key was not pressed again within double press time
-					if (releasedKeyCode == KEY_NUM5) {
-						gpsRecenter = true;
-					}
-					releasedKeyCode = 0;
-					repaint(0, 0, getWidth(), getHeight());	
-				}			
-			};
-		    // set double press time
-			tm.schedule(timerT, 250);
-		}
-	}
-	
 	
 //	// manage keys that would have different meanings when
 //	// held down in keyReleased
-	protected void keyReleased(int keyCode) {
+	protected void keyReleased(final int keyCode) {
 		// if key was not handled as held down key
-	// strange seem to be working in emulator only with this debug line
-		logger.debug("keyReleased " + keyCode);
+		// strange seem to be working in emulator only with this debug line
+		logger.debug("keyReleased " + keyCode + " ignoreKeyCode: " + ignoreKeyCode + " prevRelCode: " + releasedKeyCode);
 		if (keyCode == ignoreKeyCode) {
 			ignoreKeyCode=0;
 			return;
 		}
-		// handle this key normally (shortly pressed)
-		if (keyCode == KEY_NUM5) {
-			singleOrDoubleKeyPress(keyCode);
-		} else if (keyCode == KEY_NUM9) {
-			if(keyboardLocked) {
-				keyPressed(0);
-				return;
+		final Command doubleC = (Command)doubleKeyPressCommand.get(keyCode);
+//		key was pressed twice quickly
+		if (releasedKeyCode == keyCode) {
+			releasedKeyCode = 0;
+			//#debug debug
+			logger.debug("double key pressed " + keyCode +  " executing command " + doubleC);
+			if (doubleC != null) {				
+				commandAction(doubleC,(Displayable) null);
 			}
-			course += 5;
-		} else if (keyCode == KEY_STAR) {
-			commandAction(MAPFEATURES_CMD,(Displayable) null);
-			return;
-		} else if (keyCode == KEY_POUND) {
-			// toggle Backlight
-			config.setCfgBitState(config.CFGBIT_BACKLIGHT_ON,
-								!(config.getCfgBitState(config.CFGBIT_BACKLIGHT_ON)),
-								false);			
-			if ( config.getCfgBitState(config.CFGBIT_BACKLIGHT_ON, false) ) {
-				GpsMid.getInstance().alert("Backlight", "Backlight ON" , 750);
-				
-			} else {
-				GpsMid.getInstance().alert("Backlight", "Backlight off" , 750);				
-			}			
-			parent.stopBackLightTimer();
-			parent.startBackLightTimer();
-		} else if (keyCode == KEY_NUM0) {
-			boolean fullScreen = !config.getCfgBitState(config.CFGBIT_FULLSCREEN);
-			config.setCfgBitState(config.CFGBIT_FULLSCREEN, fullScreen, false);
-			setFullScreenMode(fullScreen);			
+		} else {
+			releasedKeyCode = keyCode;
+			final Command singleC = (Command)singleKeyPressCommand.get(keyCode);
+//			#debug debug
+			logger.debug("single key initiated " + keyCode +  " executing command " + singleC);
+			if (singleC != null) {
+				if (doubleC != null) {
+					TimerTask timerT;
+					Timer tm = new Timer();	    
+					timerT = new TimerTask() {
+						public void run() {
+							if (releasedKeyCode == keyCode) {
+								//#debug debug
+								logger.debug("single key pressed " + keyCode +  " delayed executing command " + singleC);
+								// key was not pressed again within double press time
+								commandAction(singleC,(Displayable) null);
+								releasedKeyCode = 0;
+								repaint(0, 0, getWidth(), getHeight());
+							}
+						}			
+					};
+					// set double press time
+					tm.schedule(timerT, 300);
+				} else {
+					//#debug debug
+					logger.debug("single key pressed " + keyCode +  " executing command " + singleC);
+					commandAction(singleC,(Displayable) null);
+					releasedKeyCode = 0;
+				}
+			}
 		}
-		repaint(0, 0, getWidth(), getHeight());	
+		repaint();
 	}
 	
 	protected void keyPressed(int keyCode) {
-//		logger.debug("keyPressed " + keyCode);		
+		logger.debug("keyPressed " + keyCode);		
 		ignoreKeyCode=0;
 		pressedKeyCode=keyCode;
 		pressedKeyTime=System.currentTimeMillis();
 		if(keyboardLocked && keyCode!=KEY_NUM9) {
-			parent.getInstance().alert("GpsMid", "Keys locked. Hold down '9' to unlock.",1500);
+			GpsMid.getInstance().alert("GpsMid", "Keys locked. Hold down '9' to unlock.",1500);
 			ignoreKeyCode=keyCode;
 			return;
 		}
-	
-		float f = 0.00003f / 15000f;
-		int keyStatus;		
+
 		if (this.getGameAction(keyCode) == UP) {
 			imageCollector.getCurrentProjection().pan(center, 0, -2);
-//			center.radlat += f * scale * 0.1f;
 			gpsRecenter = false;
 		} else if (this.getGameAction(keyCode) == DOWN) {	
 			imageCollector.getCurrentProjection().pan(center, 0, 2);
-//			center.radlat -= f * scale * 0.1f;
 			gpsRecenter = false;
 		} else if (this.getGameAction(keyCode) == LEFT) {		
 			imageCollector.getCurrentProjection().pan(center, -2, 0);
-//			center.radlon -= f * scale * 0.1f;
 			gpsRecenter = false;
 		} else if (this.getGameAction(keyCode) == RIGHT) {		
 			imageCollector.getCurrentProjection().pan(center, 2, 0);
-//			center.radlon += f * scale * 0.1f;
 			gpsRecenter = false;
 		}				
 		if (keyCode == KEY_NUM2) {		
 			imageCollector.getCurrentProjection().pan(center, 0, -25);
-//			center.radlat += f * scale;
+			gpsRecenter = false;
 		} else if (keyCode == KEY_NUM8) {
 			imageCollector.getCurrentProjection().pan(center, 0, 25);
-//			center.radlat -= f * scale;
+			gpsRecenter = false;
 		} else if (keyCode == KEY_NUM4) {
 			imageCollector.getCurrentProjection().pan(center, -25, 0);
-//			center.radlon -= f * scale;
+			gpsRecenter = false;
 		} else if (keyCode == KEY_NUM6) {
 			imageCollector.getCurrentProjection().pan(center, 25, 0);
-//			center.radlon += f * scale;
-		} else if (keyCode == KEY_NUM1) {
-			scale = scale * 1.5f;
-		} else if (keyCode == KEY_NUM3) {
-			scale = scale / 1.5f;
-		} else if (keyCode == KEY_NUM7) {
-			showAddons++;
-//			course++;
-		/** Non standard Key: hopefully is mapped to
-		 * the delete / clear key. According to
-		 * www.j2meforums.com/wiki/index.php/Canvas_Keycodes
-		 * most major mobiles that have this key map to -8
-		 **/
-		} else if (keyCode == -8) {
-			   commandAction(ROUTE_TO_CMD,(Displayable) null);
-			   return;		
-		} else if (keyCode == Configuration.KEYCODE_CAMERA_COVER_OPEN) {
-			//#if polish.api.mmapi
-			commandAction(CAMERA_CMD, (Displayable)null);
-			//#endif
-		} else {		
-			keyStatus = keyCode;
+			gpsRecenter = false;
 		}
-// this is already done in paint
-//		pc.center = center.clone();
-//		pc.scale = scale;
-//		pc.course = course;
 		repaint(0, 0, getWidth(), getHeight());
 	}
 
