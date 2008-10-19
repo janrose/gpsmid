@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.4 $$ ($Name:  $)
+ * @version $Revision: 1.5 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -28,6 +28,7 @@ public class Position {
 	 */
 	public float speed;
 	public float course;
+	public float pdop = 0.0f;
 	public int mode=-1;
 	public Date date;
 //	 
