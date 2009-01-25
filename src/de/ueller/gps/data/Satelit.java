@@ -4,7 +4,7 @@
  * takes an InputStream and interpret layer 3 and layer 4. Than make
  * callbacks to the receiver witch ahas to implement SirfMsgReceiver 
  *
- * @version $Revision: 1.3 $$ ($Name:  $)
+ * @version $Revision: 1.4 $$ ($Name:  $)
  * @autor Harald Mueller james22 at users dot sourceforge dot net
  * Copyright (C) 2007 Harald Mueller
  */
@@ -28,14 +28,14 @@ public class Satelit {
 	public float azimut;
 	public float elev;
 	public int state;
-	public int signal[];
+//	public int signal[];
 	/**
 	 * Signal to noise ratio in arbitrary units
 	 */
 	public int snr;
 	public Date lastUpdate;
 	public Satelit() {
-		signal=new int[10];
+//		signal=new int[10];
 	}
 	
 	private boolean isState(int mask){
