@@ -14,8 +14,8 @@
 // 
 // $Source: /home/kai/workspace/GIT-GpsMid/CVS-rsync/GpsMid/src/de/ueller/midlet/gps/data/Proj2D.java,v $
 // $RCSfile: Proj2D.java,v $
-// $Revision: 1.7 $
-// $Date: 2008-09-07 00:38:34 $
+// $Revision: 1.8 $
+// $Date: 2009-01-25 14:40:51 $
 // $Author: apmonkey $
 // 
 // **********************************************************************
@@ -247,6 +247,10 @@ public class Proj2D implements Projection {
 
 	public float getCourse() {
 		return 0;
+	}
+	
+	public String toString() {
+		return "Proj2D " + (ctrLat * MoreMath.FAC_RADTODEC) + "/"+ (ctrLon * MoreMath.FAC_RADTODEC) + " s:" + scale;
 	}
 
 }
