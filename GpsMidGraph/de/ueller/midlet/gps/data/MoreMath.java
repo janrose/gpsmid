@@ -14,8 +14,8 @@
 // 
 // $Source: /home/kai/workspace/GIT-GpsMid/CVS-rsync/GpsMid/GpsMidGraph/de/ueller/midlet/gps/data/MoreMath.java,v $
 // $RCSfile: MoreMath.java,v $
-// $Revision: 1.3 $
-// $Date: 2009-01-10 20:35:26 $
+// $Revision: 1.4 $
+// $Date: 2009-02-15 13:33:10 $
 // $Author: sk750 $
 // 
 // **********************************************************************
@@ -796,4 +796,20 @@ public class MoreMath {
     	double x=Math.cos(lat1)*Math.sin(lat2)-Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
     	return atan2(y,x);
     }        
+
+
+	/**
+	 * calculate the start bearing in 1/2 degree so result 90 indicates 180 degree. 
+	 * @param from
+	 * @param to
+	 * @return
+	 */
+	public final static byte bearing_start(float fromLat, float fromLon, float toLat, float toLon){
+		double b=bearing_int(
+				fromLat,
+				fromLon,
+				toLat,
+				toLon);
+		return (byte) (Math.toDegrees(b)/2);
+	}
 }
