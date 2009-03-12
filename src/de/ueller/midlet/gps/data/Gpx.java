@@ -27,6 +27,7 @@ import javax.microedition.rms.RecordStoreNotOpenException;
 import de.ueller.gps.data.Configuration;
 import de.ueller.gps.data.Position;
 import de.ueller.gpsMid.mapData.GpxTile;
+import de.ueller.gpsMid.mapData.GpxDisplayTile;
 import de.ueller.gpsMid.mapData.Tile;
 import de.ueller.gpsMid.mapData.WaypointsTile;
 import de.ueller.midlet.gps.CompletionListener;
@@ -90,13 +91,17 @@ public class Gpx extends Tile implements Runnable, CompletionListener {
 	private ByteArrayOutputStream baos;
 	private DataOutputStream dos;
 	private boolean trkRecordingSuspended;
-		
+	
+	/** holds the track that is currently recorded */
 	private GpxTile trackTile;
+	/** holds tracks that are loaded to be displayed but not altered by recording more trackpoints*/
+	private GpxDisplayTile	loadedTracksTile;
 	private WaypointsTile wayPtTile;
 
 
 	public Gpx() {
 		trackTile = new GpxTile();
+		loadedTracksTile = new GpxDisplayTile();
 		wayPtTile = new WaypointsTile();
 		reloadWpt = true;
 		processorThread = new Thread(this);
@@ -108,6 +113,10 @@ public class Gpx extends Tile implements Runnable, CompletionListener {
 		
 	}
 	
+	/**
+	 * loads the given track and displays it on the map-screen
+	 * @param trk
+	 */
 	public void displayTrk(PersistEntity trk) {
 		if (trk == null) {
 			//TODO:
@@ -141,6 +150,64 @@ public class Gpx extends Tile implements Runnable, CompletionListener {
 				dis1 = null;
 				trackDatabase.closeRecordStore();
 				trackDatabase = null;
+			} catch (IOException e) {
+				logger.exception("IOException displaying track", e);
+			} catch (RecordStoreNotOpenException e) {
+				logger.exception("Exception displaying track (database not open)", e);
+			} catch (InvalidRecordIDException e) {
+				logger.exception("Exception displaying track (ID invalid)", e);
+			} catch (RecordStoreException e) {
+				logger.exception("Exception displaying track", e);
+			}
+		}
+		
+	}
+	
+	/**
+	 * loads the given tracks to display them on the map-screen
+	 * @param trks Array of tracks to be displayed
+	 */
+	public void displayTrk(PersistEntity[] trks) {
+		if (trks == null) {
+			//TODO:
+		} else {
+			try {
+				loadedTracksTile.dropTrk();
+				openTrackDatabase();
+				for(int j=0; j< trks.length; j++){
+					//skip invalid array entries
+					if(trks[j] == null)
+						continue;
+					
+					DataInputStream dis1 = new DataInputStream(new ByteArrayInputStream(trackDatabase.getRecord(trks[i].id)));
+					trackName = dis1.readUTF();
+					recorded = dis1.readInt();
+					int trackSize = dis1.readInt();
+					byte[] trackArray = new byte[trackSize];
+					dis1.read(trackArray);
+					DataInputStream trackIS = new DataInputStream(new ByteArrayInputStream(trackArray));
+					for (int i = 0; i < recorded; i++) {
+						float lat = trackIS.readFloat();
+						float lon = trackIS.readFloat();
+						//center map on track start
+						if (i == 0 && j == 0) {
+							Trace tr = Trace.getInstance();
+							tr.receivePosItion(lat * MoreMath.FAC_DECTORAD, lon * MoreMath.FAC_DECTORAD, tr.scale);
+						}
+						trackIS.readShort(); //altitude
+						long time = trackIS.readLong();	//Time
+						trackIS.readByte(); //Speed
+						if (time > Long.MIN_VALUE + 10) { //We use some special markers in the Time to indicate 
+										//Data other than trackpoints, so ignore these.
+							trackTile.addTrkPt(lat, lon, false);
+						}
+					}
+					dis1.close();
+					dis1 = null;
+					trackDatabase.closeRecordStore();
+					trackDatabase = null;
+				}
+				
 			} catch (IOException e) {
 				logger.exception("IOException displaying track", e);
 			} catch (RecordStoreNotOpenException e) {
