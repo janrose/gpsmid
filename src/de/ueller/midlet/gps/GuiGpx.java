@@ -111,9 +111,10 @@ public class GuiGpx extends List implements CommandListener,
 			return;
 		}
 		if (c == DISP_CMD) {
-			idx = getFirstSelectedIndex();
-			if (idx >= 0) {
-				parent.gpx.displayTrk(trks[idx]);
+			updateProcessVector();
+			if (processTracks.size() > 0)
+			{
+				parent.gpx.displayTrk(processTracks);
 				parent.show();
 			}
 			return;

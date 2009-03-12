@@ -165,21 +165,18 @@ public class Gpx extends Tile implements Runnable, CompletionListener {
 	
 	/**
 	 * loads the given tracks to display them on the map-screen
-	 * @param trks Array of tracks to be displayed
+	 * @param trks Vector of tracks to be displayed
 	 */
-	public void displayTrk(PersistEntity[] trks) {
+	public void displayTrk(Vector trks) {
 		if (trks == null) {
 			//TODO:
 		} else {
 			try {
 				loadedTracksTile.dropTrk();
 				openTrackDatabase();
-				for(int j=0; j< trks.length; j++){
-					//skip invalid array entries
-					if(trks[j] == null)
-						continue;
-					
-					DataInputStream dis1 = new DataInputStream(new ByteArrayInputStream(trackDatabase.getRecord(trks[i].id)));
+				for(int j=0; j< trks.size(); j++){
+					PersistEntity track = (PersistEntity)trks.elementAt(j);
+					DataInputStream dis1 = new DataInputStream(new ByteArrayInputStream(trackDatabase.getRecord(track.id)));
 					trackName = dis1.readUTF();
 					recorded = dis1.readInt();
 					int trackSize = dis1.readInt();
@@ -204,9 +201,10 @@ public class Gpx extends Tile implements Runnable, CompletionListener {
 					}
 					dis1.close();
 					dis1 = null;
-					trackDatabase.closeRecordStore();
-					trackDatabase = null;
 				}
+				
+				trackDatabase.closeRecordStore();
+				trackDatabase = null;
 				
 			} catch (IOException e) {
 				logger.exception("IOException displaying track", e);

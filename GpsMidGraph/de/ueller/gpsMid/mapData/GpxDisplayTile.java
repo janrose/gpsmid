@@ -14,6 +14,10 @@ import de.ueller.midlet.gps.tile.PaintContext;
 
 public class GpxDisplayTile extends GpxTile {	
 		
+//	 Sub tiles, will be null if no split was yet made.
+	GpxDisplayTile t1;
+	GpxDisplayTile t2;
+	
 	public GpxDisplayTile() {
 		super();
 	}
