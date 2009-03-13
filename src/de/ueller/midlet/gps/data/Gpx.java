@@ -27,7 +27,6 @@ import javax.microedition.rms.RecordStoreNotOpenException;
 import de.ueller.gps.data.Configuration;
 import de.ueller.gps.data.Position;
 import de.ueller.gpsMid.mapData.GpxTile;
-import de.ueller.gpsMid.mapData.GpxDisplayTile;
 import de.ueller.gpsMid.mapData.Tile;
 import de.ueller.gpsMid.mapData.WaypointsTile;
 import de.ueller.midlet.gps.CompletionListener;
@@ -95,13 +94,13 @@ public class Gpx extends Tile implements Runnable, CompletionListener {
 	/** holds the track that is currently recorded */
 	private GpxTile trackTile;
 	/** holds tracks that are loaded to be displayed but not altered by recording more trackpoints*/
-	private GpxDisplayTile	loadedTracksTile;
+	private GpxTile	loadedTracksTile;
 	private WaypointsTile wayPtTile;
 
 
 	public Gpx() {
 		trackTile = new GpxTile();
-		loadedTracksTile = new GpxDisplayTile();
+		loadedTracksTile = new GpxTile(true);
 		wayPtTile = new WaypointsTile();
 		reloadWpt = true;
 		processorThread = new Thread(this);
@@ -114,7 +113,7 @@ public class Gpx extends Tile implements Runnable, CompletionListener {
 	}
 	
 	/**
-	 * loads the given track and displays it on the map-screen
+	 * loads one given track and displays it on the map-screen
 	 * @param trk
 	 */
 	public void displayTrk(PersistEntity trk) {
@@ -196,7 +195,7 @@ public class Gpx extends Tile implements Runnable, CompletionListener {
 						trackIS.readByte(); //Speed
 						if (time > Long.MIN_VALUE + 10) { //We use some special markers in the Time to indicate 
 										//Data other than trackpoints, so ignore these.
-							trackTile.addTrkPt(lat, lon, false);
+							loadedTracksTile.addTrkPt(lat, lon, false);
 						}
 					}
 					dis1.close();
@@ -206,6 +205,16 @@ public class Gpx extends Tile implements Runnable, CompletionListener {
 				trackDatabase.closeRecordStore();
 				trackDatabase = null;
 				
+			} catch (OutOfMemoryError oome){
+				loadedTracksTile.dropTrk();
+				try {
+					trackDatabase.closeRecordStore();
+				} catch (RecordStoreException e) {
+					logger.exception("Exception closing Recordstore after OutOfMemoryError displaying tracks", e);
+				}
+				trackDatabase = null;
+				System.gc();
+			
 			} catch (IOException e) {
 				logger.exception("IOException displaying track", e);
 			} catch (RecordStoreNotOpenException e) {
@@ -711,6 +720,7 @@ public class Gpx extends Tile implements Runnable, CompletionListener {
 
 	public void paint(PaintContext pc, byte layer) {
 		trackTile.paint(pc, layer);
+		loadedTracksTile.paint(pc, layer);
 		wayPtTile.paint(pc, layer);
 	}
 	
