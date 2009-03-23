@@ -33,6 +33,7 @@ import javax.microedition.midlet.MIDlet;
 
 
 
+import de.ueller.gps.SECellID;
 import de.ueller.gps.data.Configuration;
 import de.ueller.gps.data.Position;
 import de.ueller.gps.data.Satelit;
@@ -57,6 +58,7 @@ import de.ueller.midlet.gps.data.IntPoint;
 import de.ueller.midlet.gps.data.MoreMath;
 import de.ueller.midlet.gps.data.Node;
 import de.ueller.midlet.gps.data.PositionMark;
+import de.ueller.midlet.gps.data.SECellLocLogger;
 import de.ueller.midlet.gps.data.Way;
 import de.ueller.midlet.gps.names.Names;
 import de.ueller.midlet.gps.routing.ConnectionWithNode;
@@ -107,7 +109,7 @@ Runnable , GpsMidDisplayable{
 	private static final int TOGGLE_RECORDING_CMD = 28;
 	private static final int TOGGLE_RECORDING_SUSP_CMD = 29;
 	private static final int RECENTER_GPS_CMD = 30;
-	private static final int TACHO_CMD = 31;
+	private static final int DATASCREEN_CMD = 31;
 	private static final int OVERVIEW_MAP_CMD = 32;
 	private static final int RETRIEVE_XML = 33;
 	private static final int PAN_LEFT25_CMD = 34;
@@ -125,7 +127,11 @@ Runnable , GpsMidDisplayable{
 	//#endif
 
 	private final Command [] CMDS = new Command[45];
-	
+
+	public static final int DATASCREEN_NONE = 0;
+	public static final int DATASCREEN_TACHO = 1;
+	public static final int DATASCREEN_TRIP = 2;
+	public static final int DATASCREEN_SATS = 3;
 	
 //	private SirfInput si;
 	private LocationMsgProducer locationProducer;
@@ -157,7 +163,8 @@ Runnable , GpsMidDisplayable{
 	
 	private String currentAlertTitle;
 	private String currentAlertMessage;
-	private volatile int currentAlertsOpenCount; 
+	private volatile int currentAlertsOpenCount;
+	private volatile int setAlertTimeout = 0;
 
 	private long lastBackLightOnTime = 0;
 	
@@ -190,6 +197,8 @@ Runnable , GpsMidDisplayable{
 
 	private List recordingsMenu = null;
 	private List routingsMenu = null;
+	private GuiTacho guiTacho = null;
+	private GuiTrip guiTrip = null;
 	private GuiWaypointSave guiWaypointSave = null;
 
 	private final static Logger logger = Logger.getInstance(Trace.class,Logger.DEBUG);
@@ -218,7 +227,7 @@ Runnable , GpsMidDisplayable{
 	/** 
 	 * Flag if we're speeding
 	 */
-	private volatile boolean speeding=false;
+	private volatile boolean speeding = false;
 	private long lastTimeOfSpeedingSound = 0;
 	private long startTimeOfSpeedingSign = 0;
 	private int speedingSpeedLimit = 0;
@@ -226,10 +235,10 @@ Runnable , GpsMidDisplayable{
 	/**
 	 * Current course from GPS in compass degrees, 0..359.  
 	 */
-	private int course=0;
+	private int course = 0;
 
-	public boolean atTarget=false;
-	public boolean movedAwayFromTarget=true;
+	public boolean atTarget = false;
+	public boolean movedAwayFromTarget = true;
 
 	private Names namesThread;
 
@@ -241,17 +250,17 @@ Runnable , GpsMidDisplayable{
 
 	private Runtime runtime = Runtime.getRuntime();
 
-	private PositionMark target;
-	private Vector route=null;
-	private RouteInstructions ri=null;
+	private PositionMark target = null;
+	private Vector route = null;
+	private RouteInstructions ri = null;
 	
-	private boolean running=false;
-	private static final int CENTERPOS = Graphics.HCENTER|Graphics.VCENTER;
+	private boolean running = false;
+	private static final int CENTERPOS = Graphics.HCENTER | Graphics.VCENTER;
 
 	public Gpx gpx;
 	private AudioRecorder audioRec;
 	
-	private static Trace traceInstance=null;
+	private static Trace traceInstance = null;
 
 	private Routing	routeEngine;
 
@@ -260,7 +269,7 @@ Runnable , GpsMidDisplayable{
 	private static int smallBoldFontHeight;
 	*/
 	
-	private boolean manualRotationMode=false;
+	private boolean manualRotationMode = false;
 	
 	public Vector locationUpdateListeners;
 	
@@ -302,7 +311,7 @@ Runnable , GpsMidDisplayable{
 		CMDS[TOGGLE_RECORDING_CMD] = new Command("(De)Activate recording",Command.ITEM, 100);
 		CMDS[TOGGLE_RECORDING_SUSP_CMD] = new Command("Suspend recording",Command.ITEM, 100);
 		CMDS[RECENTER_GPS_CMD] = new Command("Recenter on GPS",Command.ITEM, 100);
-		CMDS[TACHO_CMD] = new Command("Tacho",Command.ITEM, 100);
+		CMDS[DATASCREEN_CMD] = new Command("Tacho",Command.ITEM, 100);
 		CMDS[OVERVIEW_MAP_CMD] = new Command("Overview/Filter Map",Command.ITEM, 200);
 		CMDS[RETRIEVE_XML] = new Command("Retrieve XML",Command.ITEM, 200);
 		CMDS[PAN_LEFT25_CMD] = new Command("left 25%",Command.ITEM, 100);
@@ -325,7 +334,7 @@ Runnable , GpsMidDisplayable{
 		addCommand(CMDS[MAPFEATURES_CMD]);
 		addCommand(CMDS[RECORDINGS_CMD]);
 		addCommand(CMDS[ROUTINGS_CMD]);
-		addCommand(CMDS[TACHO_CMD]);
+		addCommand(CMDS[DATASCREEN_CMD]);
 		//#if polish.api.osm-editing
 		addCommand(CMDS[RETRIEVE_XML]);
 		//#endif
@@ -363,6 +372,7 @@ Runnable , GpsMidDisplayable{
 	// start the LocationProvider in background
 	public void run() {
 		try {
+			
 			if (running){
 				receiveMessage("GPS starter already running");
 				return;
@@ -370,22 +380,26 @@ Runnable , GpsMidDisplayable{
 
 			//#debug info
 			logger.info("start thread init locationprovider");
-			if (locationProducer != null){
+			if (locationProducer != null) {
 				receiveMessage("Location provider already running");
 				return;
 			}
-			if (Configuration.getLocationProvider() == Configuration.LOCATIONPROVIDER_NONE){
+			if (Configuration.getLocationProvider() == Configuration.LOCATIONPROVIDER_NONE) {
 				receiveMessage("No location provider");
 				return;
 			}
 			running=true;
-			receiveMessage("Connect to "+Configuration.LOCATIONPROVIDER[Configuration.getLocationProvider()]);
-			switch (Configuration.getLocationProvider()){
+			int locprov = Configuration.getLocationProvider();
+			receiveMessage("Connect to "+Configuration.LOCATIONPROVIDER[locprov]);
+			switch (locprov){
 				case Configuration.LOCATIONPROVIDER_SIRF:
 					locationProducer = new SirfInput();
 					break;
 				case Configuration.LOCATIONPROVIDER_NMEA:
 					locationProducer = new NmeaInput();
+					break;
+				case Configuration.LOCATIONPROVIDER_SECELL:
+					locationProducer = new SECellID();
 					break;
 				case Configuration.LOCATIONPROVIDER_JSR179:
 					//#if polish.api.locationapi
@@ -442,6 +456,17 @@ Runnable , GpsMidDisplayable{
 						if (!fileCon.exists())
 							fileCon.create();
 						locationProducer.enableRawLogging(((FileConnection)logCon).openOutputStream());
+						
+						/**
+						 * Help out the OpenCellId.org project by gathering and logging
+						 * data of cell ids together with current Gps location. This information
+						 * can then be uploaded to their web site to determine the position of the
+						 * cell towers. It currently only works for SE phones
+						 */
+						SECellLocLogger secl = new SECellLocLogger();
+						if (secl.init()) {
+							locationProducer.addLocationMsgReceiver(secl);
+						}
 					} else {
 						logger.info("Trying to perform raw logging of NMEA on anything else than filesystem is currently not supported");
 					}
@@ -583,7 +608,6 @@ Runnable , GpsMidDisplayable{
 					parent.addToBackLightLevel(backLightLevelDiff);
 					parent.showBackLightLevel();
 				} else {
-					imageCollector.getCurrentProjection().pan(center, panX, panY);
 					if (courseDiff == 360) {
 						course = 0; //N
 					} else {
@@ -593,7 +617,10 @@ Runnable , GpsMidDisplayable{
 							course += 360;
 						}
 					}
-					gpsRecenter = false;
+					if (panX != 0 || panY != 0) {
+						gpsRecenter = false;
+					}
+					imageCollector.getCurrentProjection().pan(center, panX, panY);
 				}
 				return;
 			}
@@ -920,9 +947,8 @@ Runnable , GpsMidDisplayable{
 			} else if (c == CMDS[RECENTER_GPS_CMD]) {
 				gpsRecenter = true;
 				newDataReady();
-			} else if (c == CMDS[TACHO_CMD]) {
-				GuiTacho tacho = new GuiTacho(this);
-				tacho.show();
+			} else if (c == CMDS[DATASCREEN_CMD]) {
+				showNextDataScreen(DATASCREEN_NONE);
 			}
 			//#if polish.api.osm-editing 
 				else if (c == CMDS[RETRIEVE_XML]) {
@@ -1084,25 +1110,60 @@ Runnable , GpsMidDisplayable{
 					}
 				}
 			}
+			
+			/*
+			 *  beginning of voice instructions started from overlay code (besides showRoute above)
+			 */
+			// determine if we are at the target
+			if (target != null) {
+				float distance = ProjMath.getDistance(target.lat, target.lon, center.radlat, center.radlon);
+				atTarget = (distance < 25);
+				if (atTarget) {
+					if (movedAwayFromTarget && Configuration.getCfgBitState(Configuration.CFGBIT_SND_TARGETREACHED)) {
+						parent.mNoiseMaker.playSound("TARGET_REACHED", (byte) 7, (byte) 1);
+					}
+				} else if (!movedAwayFromTarget) {
+					movedAwayFromTarget=true;
+				}
+			}
+			// determine if we are currently speeding
+			speeding = false;
+			int maxSpeed = 0;
+			if (actualWay != null) {
+				maxSpeed = actualWay.getMaxSpeed();
+				if (maxSpeed != 0 && speed > (maxSpeed + Configuration.getSpeedTolerance()) ) {
+					speeding = true;
+				}
+			}
+			if (speeding && Configuration.getCfgBitState(Configuration.CFGBIT_SPEEDALERT_SND)) {
+				// give speeding alert only every 10 seconds
+				if ( (System.currentTimeMillis() - lastTimeOfSpeedingSound) > 10000 ) {
+					lastTimeOfSpeedingSound = System.currentTimeMillis();
+					parent.mNoiseMaker.immediateSound("SPEED_LIMIT");					
+				}
+			}
+			/*
+			 *  end of voice instructions started from overlay code
+			 */
+			
+			/*
+			 * the final part of the overlay should not give any voice instructions
+			 */			
 			switch (showAddons) {
 			case 1:
-				showScale(pc);				
-				break;
-			case 2:
-				yc = showSpeed(g, yc, la);
-				yc = showDistanceToTarget(g, yc, la);
-				break;
-			case 3:
 				showSatelite(g);
 				break;
-			case 4:
+			case 2:
 				yc = showConnectStatistics(g, yc, la);
 				break;
-			case 5:
+			case 3:
 				yc = showMemory(g, yc, la);
 				break;
 			default:
 				showAddons = 0;
+				if (Configuration.getCfgBitState(Configuration.CFGBIT_SHOW_SCALE_BAR)) {
+					showScale(pc);				
+				}
 				if (ProjFactory.getProj() == ProjFactory.MOVE_UP
 					&& Configuration.getCfgBitState(Configuration.CFGBIT_SHOW_POINT_OF_COMPASS)
 				) {
@@ -1137,57 +1198,8 @@ Runnable , GpsMidDisplayable{
 			if (pc != null){
 				showTarget(pc);
 			}
-			
-			// determine if we are currently speeding
-			speeding = false;
-			int maxSpeed = 0;
-			if (actualWay != null) {
-				maxSpeed = actualWay.getMaxSpeed();
-				if (maxSpeed != 0 && speed > (maxSpeed + Configuration.getSpeedTolerance()) ) {
-					speeding = true;
-				}
-			}
-			if (Configuration.getCfgBitState(Configuration.CFGBIT_SPEEDALERT_VISUAL)
-				&& (
-					speeding
-					||
-					(System.currentTimeMillis() - startTimeOfSpeedingSign) < 3000
-				)
-			) {
-				if (speeding) {
-					startTimeOfSpeedingSign = System.currentTimeMillis();
-					speedingSpeedLimit = maxSpeed;
-				}
-				
-				String sSpeed = Integer.toString(speedingSpeedLimit);
-				int oldColor = g.getColor();
-				Font oldFont = g.getFont();
-				Font speedingFont = Font.getFont(Font.FACE_PROPORTIONAL, Font.STYLE_BOLD, Font.SIZE_LARGE);
-				int w = speedingFont.stringWidth(sSpeed);
-				int w0 = speedingFont.charWidth('0');
-				int h0 = speedingFont.getHeight();
-				w += w0 * 4;
-				g.setColor(0x00FF0000);
-				int yPos = pc.ySize - w - (h0 / 2) - imageCollector.statusFontHeight - RouteInstructions.routeInstructionsHeight;
-				g.fillArc(0, yPos, w, w, 0, 360);
-				g.setColor(0x00FFFFFF);
-				g.fillArc(w0, yPos + w0, w - (w0 * 2), w - (w0 * 2), 0, 360);
-				g.setColor(0x00000000);
-				g.setFont(speedingFont);
-				g.drawString(sSpeed, w/2, yPos + w/2 - (h0 / 2), Graphics.TOP | Graphics.HCENTER);
-				g.setFont(oldFont);
-				g.setColor(oldColor);
-			} else {
-				startTimeOfSpeedingSign = 0;
-			}
-			
-			if (speeding && Configuration.getCfgBitState(Configuration.CFGBIT_SPEEDALERT_SND)) {
-				// give speeding alert only every 10 seconds
-				if ( (System.currentTimeMillis() - lastTimeOfSpeedingSound) > 10000 ) {
-					lastTimeOfSpeedingSound = System.currentTimeMillis();
-					parent.mNoiseMaker.immediateSound("SPEED_LIMIT");					
-				}
-			}
+
+			showSpeedingSign(g, maxSpeed);
 
 			if (currentMsg != null) {
 				if (compassRectHeight == 0) {
@@ -1288,10 +1300,62 @@ Runnable , GpsMidDisplayable{
 						y += (fontHeight * 3 / 2); 
 					}
 				} // end for
+				if (setAlertTimeout != 0) {
+					TimerTask timerT;
+					Timer tm = new Timer();	    
+					timerT = new TimerTask() {
+						public synchronized void run() {
+							currentAlertsOpenCount--;
+							if (currentAlertsOpenCount == 0) {
+								//#debug debug
+								logger.debug("clearing alert");
+								repaint();
+							}
+						}			
+					};
+					tm.schedule(timerT, setAlertTimeout);
+					setAlertTimeout = 0;
+				}
 			}
 			
 		} catch (Exception e) {
 			logger.silentexception("Unhandled exception in the paint code", e);
+		}
+	}
+
+	private void showSpeedingSign(Graphics g, int maxSpeed) {
+		if (Configuration.getCfgBitState(Configuration.CFGBIT_SPEEDALERT_VISUAL)
+			&& (
+				speeding
+				||
+				(System.currentTimeMillis() - startTimeOfSpeedingSign) < 3000
+			)
+		) {
+			if (speeding) {
+				startTimeOfSpeedingSign = System.currentTimeMillis();
+				speedingSpeedLimit = maxSpeed;
+			}
+			
+			String sSpeed = Integer.toString(speedingSpeedLimit);
+			int oldColor = g.getColor();
+			Font oldFont = g.getFont();
+			Font speedingFont = Font.getFont(Font.FACE_PROPORTIONAL, Font.STYLE_BOLD, Font.SIZE_LARGE);
+			int w = speedingFont.stringWidth(sSpeed);
+			int w0 = speedingFont.charWidth('0');
+			int h0 = speedingFont.getHeight();
+			w += w0 * 4;
+			g.setColor(0x00FF0000);
+			int yPos = pc.ySize - w - (h0 / 2) - imageCollector.statusFontHeight - RouteInstructions.routeInstructionsHeight;
+			g.fillArc(0, yPos, w, w, 0, 360);
+			g.setColor(0x00FFFFFF);
+			g.fillArc(w0, yPos + w0, w - (w0 * 2), w - (w0 * 2), 0, 360);
+			g.setColor(0x00000000);
+			g.setFont(speedingFont);
+			g.drawString(sSpeed, w/2, yPos + w/2 - (h0 / 2), Graphics.TOP | Graphics.HCENTER);
+			g.setFont(oldFont);
+			g.setColor(oldColor);
+		} else {
+			startTimeOfSpeedingSign = 0;
 		}
 	}
 
@@ -1431,17 +1495,7 @@ Runnable , GpsMidDisplayable{
 			pc.g.setColor(255,50,50);
 			pc.g.setStrokeStyle(Graphics.DOTTED);
 			pc.g.drawLine(pc.lineP2.x,pc.lineP2.y,pc.xSize/2,pc.ySize/2);
-			float distance = ProjMath.getDistance(target.lat, target.lon, center.radlat, center.radlon);
-			atTarget = (distance < 25);
-			if (atTarget) {
-				if (movedAwayFromTarget && Configuration.getCfgBitState(Configuration.CFGBIT_SND_TARGETREACHED)) {
-					parent.mNoiseMaker.playSound("TARGET_REACHED", (byte) 7, (byte) 1);
-				}
-			} else if (!movedAwayFromTarget) {
-				movedAwayFromTarget=true;
-			}
 		}
-
 	}
 
 	/**
@@ -1450,7 +1504,7 @@ Runnable , GpsMidDisplayable{
 	 * inefficient. There must be a better way
 	 * than this.
 	 * 
-	 * @param pc
+	 * @param pc Paint context for drawing
 	 */
 	public void showScale(PaintContext pc) {
 		Node n1 = new Node();
@@ -1491,6 +1545,11 @@ Runnable , GpsMidDisplayable{
 		}
 	}
 
+	/**
+	 * Draws the position square, the movement line and the center cross.
+	 * 
+	 * @param g Graphics context for drawing
+	 */
 	public void showMovement(Graphics g) {
 		g.setColor(0, 0, 0);
 		int centerX = getWidth() / 2;
@@ -1510,8 +1569,48 @@ Runnable , GpsMidDisplayable{
 		int py = posY - (int) (Math.cos(radc) * 20);
 		g.drawRect(posX - 2, posY - 2, 4, 4);
 		g.drawLine(posX, posY, px, py);
-		g.drawLine(centerX-2, centerY - 2, centerX + 2, centerY + 2);
-		g.drawLine(centerX-2, centerY + 2, centerX + 2, centerY - 2);
+		g.drawLine(centerX - 2, centerY - 2, centerX + 2, centerY + 2);
+		g.drawLine(centerX - 2, centerY + 2, centerX + 2, centerY - 2);
+	}
+	
+	/**
+	 * Show next screen in the sequence of data screens
+	 * (tacho, trip, satellites).
+	 * @param currentScreen Data screen currently shown, use the DATASCREEN_XXX
+	 *    constants from this class. Use DATASCREEN_NONE if none of them
+	 *    is on screen i.e. the first one should be shown.
+	 */
+	public void showNextDataScreen(int currentScreen) {
+		switch (currentScreen)
+		{
+			case DATASCREEN_TACHO:
+				// Tacho is followed by Trip.
+				if (guiTrip == null) {
+					guiTrip = new GuiTrip(this);
+				}
+				if (guiTrip != null) {
+					guiTrip.show();
+				}
+				break;
+			case DATASCREEN_TRIP:
+				// TODO: Trip is followed by Satellites.
+				this.show();
+				break;
+			case DATASCREEN_SATS:
+				// After satellites, go back to map.
+				this.show();
+				break;
+			case DATASCREEN_NONE:
+			default:
+				// Tacho is first data screen
+				if (guiTacho == null) {
+					guiTacho = new GuiTacho(this);
+				}
+				if (guiTacho != null) {
+					guiTacho.show();
+				}
+				break;
+		}
 	}
 
 	public int showMemory(Graphics g, int yc, int la) {
@@ -1550,41 +1649,6 @@ Runnable , GpsMidDisplayable{
 				Graphics.TOP | Graphics.LEFT );
 		return (yc);
 
-	}
-
-	public int showSpeed(Graphics g, int yc, int la) {
-		g.setColor(0, 0, 0);
-		g.drawString("speed : " + speed, 0, yc, Graphics.TOP | Graphics.LEFT);
-		yc += la;
-		g.drawString("course  : " + course, 0, yc, Graphics.TOP
-						| Graphics.LEFT);
-		yc += la;
-		g.drawString("height  : " + pos.altitude, 0, yc, Graphics.TOP
-				| Graphics.LEFT);
-		yc += la;
-		return yc;
-	}
-
-	public int showDistanceToTarget(Graphics g, int yc, int la) {
-		g.setColor(0, 0, 0);
-		String text;
-		if (target == null) {
-			text = "Distance: N/A";
-		} else {
-			
-			float distance = ProjMath.getDistance(target.lat, target.lon, center.radlat, center.radlon); 
-			if (distance > 10000) {
-				text = "Distance: " + Integer.toString((int)(distance/1000.0f)) + "km";
-			} else if (distance > 1000) {
-				text = "Distance: " + Float.toString(((int)(distance/100.0f))/10.0f) + "km";
-			} else {
-				text = "Distance: " + Integer.toString((int)distance) + "m";
-			}
-			
-		}
-		g.drawString(text , 0, yc, Graphics.TOP | Graphics.LEFT);
-		yc += la;
-		return yc;
 	}
 
 	private void updatePosition() {
@@ -1663,20 +1727,8 @@ Runnable , GpsMidDisplayable{
 		currentAlertTitle = title;
 		currentAlertMessage = message;
 		currentAlertsOpenCount++;
+		setAlertTimeout = timeout;
 		repaint();
-		TimerTask timerT;
-		Timer tm = new Timer();	    
-		timerT = new TimerTask() {
-			public synchronized void run() {
-				currentAlertsOpenCount--;
-				if (currentAlertsOpenCount == 0) {
-					//#debug debug
-					logger.debug("clearing alert");
-					repaint();
-				}
-			}			
-		};
-		tm.schedule(timerT, timeout);
 	}
 
 	
@@ -1862,8 +1914,6 @@ Runnable , GpsMidDisplayable{
 				// imageCollector thread starts up suspended,
 				// so we need to resume it
 				imageCollector.resume();
-			} else {
-//				resume();
 			}
 			repaint();
 		} catch (Exception e) {

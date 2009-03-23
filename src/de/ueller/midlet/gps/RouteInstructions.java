@@ -118,6 +118,12 @@ public class RouteInstructions {
 	public volatile static int routePathConnection=0;
 	public volatile static int pathIdxInRoutePathConnection=0;
 
+	// variables for determining against route path 
+	private static int prevRoutePathConnection = 0;
+	private static int prevPathIdxInRoutePathConnection = 0;
+	private static int iBackwardCount = 0;
+	private static long againstDirectionDetectedTime = 0;
+
 	private	static int routeInstructionColor=0x00E6E6E6;
 	
 	private final static Logger logger = Logger.getInstance(RouteInstructions.class,Logger.DEBUG);
@@ -132,6 +138,10 @@ public class RouteInstructions {
 		iPassedRouteArrow=0;
 		sumWrongDirection=-1;
 		oldRouteInstructionColor = 0x00E6E6E6;
+		prevRoutePathConnection = 0;
+		prevPathIdxInRoutePathConnection = 0;
+		iBackwardCount = 0;
+		againstDirectionDetectedTime = 0;
 		resetVoiceInstructions();			
 		GpsMid.mNoiseMaker.resetSoundRepeatTimes();		
 		try {
@@ -967,25 +977,36 @@ public class RouteInstructions {
 							}
 						}
 					}
-				}
-				routeRecalculationRequired = isOffRoute(route, center);
-				if ( routeRecalculationRequired && trace.gpsRecenter) {
-					//#debug debug
-					logger.debug("off route detected");												
-					if (icCountOffRouteDetected == 0) {
-						// remember number of recalcs so we can check in RouteInstructions if the new source way must have been determined in the meanwhile
-						icCountOffRouteDetected = ImageCollector.createImageCount;
-					/*
-					 * if at least 1-2 times the map image has been collected since detecting off-route
-					 * we can be sure the source way has been updated with one at the new position
-					 */ 
-					} else if (ImageCollector.createImageCount > icCountOffRouteDetected + 1) {
+					routeRecalculationRequired = isOffRoute(route, center);
+					if (trace.atTarget || (aNow == RI_TARGET_REACHED && intDistNow < PASSINGDISTANCE)) {
+						routeInstructionColor = 0x00808000;
+					} else if ( routeRecalculationRequired && trace.gpsRecenter) {
+						//#debug debug
+						logger.debug("off route detected");												
+						if (icCountOffRouteDetected == 0) {
+							// remember number of recalcs so we can check in RouteInstructions if the new source way must have been determined in the meanwhile
+							icCountOffRouteDetected = ImageCollector.createImageCount;
+						/*
+						 * if at least 1-2 times the map image has been collected since detecting off-route
+						 * we can be sure the source way has been updated with one at the new position
+						 */ 
+						} else if (ImageCollector.createImageCount > icCountOffRouteDetected + 1) {
+							soundToPlay.setLength(0);
+							trace.autoRouteRecalculate();
+							icCountOffRouteDetected = 0;
+						}
+					} else if (checkAgainstDirection()) {
 						soundToPlay.setLength(0);
-						trace.autoRouteRecalculate();
-						icCountOffRouteDetected = 0;
-					 }
+						soundToPlay.append ("CHECK_DIRECTION");
+						soundRepeatDelay = 15;
+						nameNow = null;
+						sbRouteInstruction.setLength(0);
+						sbRouteInstruction.append("check direction");
+						routeInstructionColor = 0x00FFFF64;
+					}
 				}
 			}
+						
 			//#debug debug
 			logger.debug("complete route instruction: " + sbRouteInstruction.toString() + " (" + soundToPlay.toString() + ")");													
 			
@@ -1131,6 +1152,52 @@ public class RouteInstructions {
 			// use orange background color
 			routeInstructionColor=0x00FFCD9B;
 		}		
+		return false;
+	}
+
+	
+	private static boolean checkAgainstDirection() {
+		// going the route connections backward adds to the backward counter
+		if (routePathConnection < prevRoutePathConnection) {
+			iBackwardCount++;
+		// going the route connections forward reduces the forward counter
+		} else if (routePathConnection > prevRoutePathConnection) {
+			iBackwardCount--;			
+		// if the routePathConnection stayed the same but the segment inside the way changed
+		// it depends on the direction of the route along the way if we go forward or backward 
+		// along the route
+		} else if (routePathConnection == prevRoutePathConnection) {
+			ConnectionWithNode c = (ConnectionWithNode) route.elementAt(routePathConnection);
+			// determine the direction of the route on the way
+			// by checking if the route goes on the way forward or backward
+			int addToCounter = (c.wayFromConAt <= c.wayToConAt) ? 1 : -1; 
+			if (pathIdxInRoutePathConnection < prevPathIdxInRoutePathConnection) {			
+				iBackwardCount += addToCounter;
+			} else if (pathIdxInRoutePathConnection > prevPathIdxInRoutePathConnection) {			
+				iBackwardCount -= addToCounter;
+			}			
+		}
+		
+		prevRoutePathConnection = routePathConnection; 
+		prevPathIdxInRoutePathConnection = pathIdxInRoutePathConnection; 
+
+		// handle when the counter got  below zero because going forward
+		if (iBackwardCount < 0) {
+			iBackwardCount = 0;
+			// when we went forward, reset being against direction time
+			againstDirectionDetectedTime = 0;
+		// if we went twice backward without going forward in the meantime, assume we are against direction 
+		} else if (iBackwardCount > 1) {		
+    		iBackwardCount = 0;
+    		againstDirectionDetectedTime = System.currentTimeMillis();
+		}
+		/* 
+		 * Also return against direction if last detection was less than 5 secs ago.
+		 * This will stop the route instructions code from giving other instructions
+		 */
+		if (Math.abs((System.currentTimeMillis() - againstDirectionDetectedTime)) < 5000) {			
+			return true;
+		}
 		return false;
 	}
 	
@@ -1437,6 +1504,9 @@ public class RouteInstructions {
 			) {
 				break;
 			}
+		}
+		if (a==route.size()) {
+			a--;
 		}
 		return a;
 	}

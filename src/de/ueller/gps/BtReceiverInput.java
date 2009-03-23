@@ -24,6 +24,7 @@ import de.ueller.gps.nmea.NmeaInput;
 import de.ueller.midlet.gps.GpsMid;
 import de.ueller.midlet.gps.LocationMsgProducer;
 import de.ueller.midlet.gps.LocationMsgReceiver;
+import de.ueller.midlet.gps.LocationMsgReceiverList;
 import de.ueller.midlet.gps.Logger;
 import de.ueller.midlet.gps.Trace;
 
@@ -46,13 +47,17 @@ public abstract class BtReceiverInput implements Runnable, LocationMsgProducer {
 	private StreamConnection conn;
 	protected OutputStream rawDataLogger;
 	protected Thread processorThread;
-	protected LocationMsgReceiver receiver;
+	protected LocationMsgReceiverList receiver;
 	protected boolean closed = false;
 	protected byte connectQuality = 100;
 	protected int bytesReceived = 0;
 	protected int[] connectError = new int[LocationMsgReceiver.SIRF_FAIL_COUNT];
 	protected String message;
 	protected int msgsReceived = 1;
+	
+	public BtReceiverInput() {
+		this.receiver = new LocationMsgReceiverList();
+	}
 
 	protected class KeepAliveTimer extends TimerTask {
 		public void run() {
@@ -71,16 +76,15 @@ public abstract class BtReceiverInput implements Runnable, LocationMsgProducer {
 	}
 
 	public boolean init(LocationMsgReceiver receiver) {
-		
-		this.receiver = receiver;
+		this.receiver.addReceiver(receiver);
 		
 		//#debug info
 		logger.info("Connect to "+Configuration.getBtUrl());
 		if (! openBtConnection(Configuration.getBtUrl())){
-			receiver.locationDecoderEnd();
+			this.receiver.locationDecoderEnd();
 			return false;
 		}
-		receiver.receiveMessage("BT Connected");
+		this.receiver.receiveMessage("BT Connected");
 		
 		processorThread = new Thread(this, "Bluetooth Receiver Decoder");
 		processorThread.setPriority(Thread.MAX_PRIORITY);
@@ -241,11 +245,14 @@ public abstract class BtReceiverInput implements Runnable, LocationMsgProducer {
 		}
 	}
 
-	public void addLocationMsgReceiver(LocationMsgReceiver receiver) {
-		// TODO Auto-generated method stub
-
+	public void addLocationMsgReceiver(LocationMsgReceiver rec) {
+		receiver.addReceiver(rec);
 	}
 	
+	public boolean removeLocationMsgReceiver(LocationMsgReceiver rec) {
+		return receiver.removeReceiver(rec);
+	}
+
 	private synchronized boolean openBtConnection(String url){
 		if (btGpsInputStream != null){
 			return true;
