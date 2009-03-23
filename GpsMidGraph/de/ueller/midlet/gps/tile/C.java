@@ -17,6 +17,7 @@ import de.ueller.midlet.gps.GpsMid;
 import de.ueller.midlet.gps.Logger;
 import de.ueller.midlet.gps.names.Names;
 
+//TODO: explain especially most of the static variables are black-magic
 public class C {
 	/**
 	 * Specifies the format of the map on disk we expect to see
